@@ -1,18 +1,50 @@
-import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.*;
 
 public class Main {
-    public static void main(String[] args) {
-        ArrayList<WebCrawler> bots = new ArrayList<>();
-        bots.add(new WebCrawler("https://abcnews.go.com", 1));
-        bots.add(new WebCrawler("https://npr.org", 2));
-        bots.add(new WebCrawler("https://nytimes.com", 3));
 
-        for(WebCrawler w : bots){
-            try {
-                w.getThread().join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+    public static void main(String[] args) {
+
+        // Shared frontier queue (core crawler concept)
+        BlockingQueue<String> frontier =
+                new LinkedBlockingQueue<>();
+
+        // Thread-safe visited set
+        Set<String> visited =
+                ConcurrentHashMap.newKeySet();
+
+        // Seed URLs
+        frontier.offer("https://abcnews.go.com");
+        frontier.offer("https://npr.org");
+        frontier.offer("https://nytimes.com");
+
+        int workers = 4;
+
+        ExecutorService pool =
+                Executors.newFixedThreadPool(workers);
+
+        // start workers
+        for (int i = 0; i < workers; i++) {
+            pool.submit(new WebCrawler(frontier, visited, i));
         }
+
+        // demo run time (stop after 60s)
+        try {
+            Thread.sleep(60000);
+        } catch (InterruptedException ignored) {}
+
+        pool.shutdownNow();
+
+        try {
+            boolean stopped = pool.awaitTermination(10, TimeUnit.SECONDS);
+            if (!stopped){
+                System.out.println("Workers did not stop in time.");
+            }
+        } catch (InterruptedException e){
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("\nCrawling finished.");
+        System.out.println("Visited pages: " + visited.size());
     }
 }
