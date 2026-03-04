@@ -14,9 +14,9 @@ public class Crawler {
         this.executor = Executors.newFixedThreadPool(threads);
         this.urlQueue = new LinkedBlockingQueue<>();
         this.visitedTracker = new VisitedTracker();
-        this.fetcher = new Fetcher();
-        this.parser = new Parser();
-        this.storage = new Storage();
+        this.fetcher = new JsoupFetcher();
+        this.parser = new HtmlParser();
+        this.storage = new ConsoleStorage();
         this.threads = threads;
 
         urlQueue.offer(seedUrl);
