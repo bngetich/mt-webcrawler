@@ -1,2 +1,14 @@
-package PACKAGE_NAME;public class ComponentFactory {
+public class ComponentFactory {
+
+    public static Fetcher createFetcher() {
+        return new JsoupFetcher();
+    }
+
+    public static Parser createParser() {
+        return new HtmlParser();
+    }
+
+    public static Storage createStorage() {
+        return new ConsoleStorage();
+    }
 }
