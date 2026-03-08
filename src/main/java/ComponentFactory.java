@@ -11,4 +11,8 @@ public class ComponentFactory {
     public static Storage createStorage() {
         return new ConsoleStorage();
     }
+
+    public static Frontier createFrontier() {
+        return new InMemoryFrontier();
+    }
 }
