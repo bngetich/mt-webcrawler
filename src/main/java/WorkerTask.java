@@ -4,20 +4,20 @@ import java.util.concurrent.BlockingQueue;
 
 public class WorkerTask implements Runnable {
 
-    private final BlockingQueue<String> queue;
+    private final Frontier frontier;
     private final VisitedTracker visited;
     private final Fetcher fetcher;
     private final Parser parser;
     private final Storage storage;
 
     public WorkerTask(
-            BlockingQueue<String> queue,
+            Frontier frontier,
             VisitedTracker visited,
             Fetcher fetcher,
             Parser parser,
             Storage storage) {
 
-        this.queue = queue;
+        this.frontier = frontier;
         this.visited = visited;
         this.fetcher = fetcher;
         this.parser = parser;
@@ -29,7 +29,7 @@ public class WorkerTask implements Runnable {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                String url = queue.take();  // blocks until a url exists OR interrupt happens
+                String url = frontier.getNextUrl();  // blocks until a url exists OR interrupt happens
 
                 if (!visited.markVisited(url)) {
                     continue;
@@ -44,7 +44,7 @@ public class WorkerTask implements Runnable {
                 storage.save(url, text);
 
                 for (String link : links) {
-                    queue.offer(link);
+                    frontier.addUrl(link);
                 }
 
             } catch (InterruptedException e) {
