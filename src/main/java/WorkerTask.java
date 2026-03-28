@@ -1,6 +1,5 @@
 import org.jsoup.nodes.Document;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 
 public class WorkerTask implements Runnable {
 
