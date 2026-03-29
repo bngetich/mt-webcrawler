@@ -10,7 +10,9 @@ public class Crawler {
     private final Storage storage;
     private final int threads;
 
-    public Crawler(int threads, String seedUrl) {
+    public Crawler(int threads,
+                   Frontier frontier,
+                   VisitedTracker visitedTracker) {
         this.executor = Executors.newFixedThreadPool(threads);
         this.frontier = ComponentFactory.createFrontier();
         this.visitedTracker = new VisitedTracker();
@@ -19,7 +21,6 @@ public class Crawler {
         this.storage = ComponentFactory.createStorage();
         this.threads = threads;
 
-        frontier.addUrl(seedUrl);
     }
 
     public void start() {
