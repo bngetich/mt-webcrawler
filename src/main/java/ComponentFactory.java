@@ -13,6 +13,12 @@ public class ComponentFactory {
     }
 
     public static Frontier createFrontier() {
+        String type = System.getProperty("frontier.type", "memory");
+
+        if(type.equals("redis")) {
+            return new RedisFrontier();
+        }
+
         return new InMemoryFrontier();
     }
 }
