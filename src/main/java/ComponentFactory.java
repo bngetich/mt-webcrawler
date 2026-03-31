@@ -21,4 +21,14 @@ public class ComponentFactory {
 
         return new InMemoryFrontier();
     }
+
+    public static VisitedTracker createVisitedTracker() {
+        String type = System.getProperty("visited.type", "memory");
+
+        if(type.equals("redis")){
+            return new RedisVisitedTracker();
+        }
+
+        return new InMemoryVisitedTracker();
+    }
 }
