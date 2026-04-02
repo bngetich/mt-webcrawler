@@ -14,8 +14,8 @@ public class Crawler {
                    Frontier frontier,
                    VisitedTracker visitedTracker) {
         this.executor = Executors.newFixedThreadPool(threads);
-        this.frontier = ComponentFactory.createFrontier();
-        this.visitedTracker = new VisitedTracker();
+        this.frontier = frontier;
+        this.visitedTracker = visitedTracker;
         this.fetcher = ComponentFactory.createFetcher();
         this.parser = ComponentFactory.createParser();
         this.storage = ComponentFactory.createStorage();
