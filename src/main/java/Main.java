@@ -2,7 +2,7 @@ public class Main {
     public static void main(String[] args) {
 
         Frontier frontier = ComponentFactory.createFrontier();
-        VisitedTracker visited = new VisitedTracker();
+        VisitedTracker visited = ComponentFactory.createVisitedTracker();
 
         // seed once
         frontier.addUrl("https://example.com");
