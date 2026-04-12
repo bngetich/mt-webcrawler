@@ -1,7 +1,9 @@
 public class Main {
     public static void main(String[] args) {
 
-        Frontier frontier = ComponentFactory.createFrontier();
+        Frontier base = ComponentFactory.createFrontier();
+        Frontier frontier = new FrontierScheduler(base);
+
         VisitedTracker visited = ComponentFactory.createVisitedTracker();
 
         // seed once

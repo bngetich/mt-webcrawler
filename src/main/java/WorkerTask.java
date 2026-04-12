@@ -37,6 +37,12 @@ public class WorkerTask implements Runnable {
                 Document doc = fetcher.fetch(url);
                 if (doc == null) continue;
 
+                System.out.println(
+                        "Crawler@" + System.identityHashCode(this) +
+                                " Thread=" + Thread.currentThread().getName() +
+                                " URL=" + url
+                );
+
                 List<String> links = parser.extractLinks(doc);
                 String text = parser.extractText(doc);
 

@@ -5,7 +5,7 @@ public class FrontierScheduler implements Frontier {
 
     private final Frontier frontier;
     private final Map<String, Long> lastAccess = new ConcurrentHashMap<>();
-    private final long delayMs = 1000;
+    private final long delayMs = 10000;
 
     public FrontierScheduler(Frontier frontier){
         this.frontier = frontier;
@@ -20,6 +20,9 @@ public class FrontierScheduler implements Frontier {
     @Override
     public String getNextUrl() throws InterruptedException {
         while(true){
+
+            System.out.println("Scheduler deciding...");
+
             String url = frontier.getNextUrl();
 
             if(url == null) continue;
@@ -33,7 +36,7 @@ public class FrontierScheduler implements Frontier {
                 if(lastTime != null && now - lastTime < delayMs) {
                     // Not allowed yet -> requeue and try later
                     frontier.addUrl(url);
-                    Thread.sleep(50);
+                    Thread.sleep(10000);
                     continue;
                 }
 
