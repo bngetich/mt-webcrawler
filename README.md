@@ -1,10 +1,10 @@
-# Multi-Threaded Web Crawler
+# Web Crawler System Design
 
 This repo explores the design and evolution of a web crawler,
-starting from a single node multithreaded worker and progressing toward
+starting from a single-node multithreaded worker and progressing toward
 a distributed crawler architecture.
 
-The focus of this project is **system design and architecture**, not
+The focus is on **system design, architecture, and scalability**, not
 just crawling functionality.
 
 ------------------------------------------------------------------------
@@ -15,13 +15,16 @@ The crawler processes pages using a pipeline:
 
 URL → Fetch → Parse → Extract Links → Store
 
-Multiple worker threads run this pipeline concurrently using a shared
-queue and visited set to avoid duplicate processing.
+Multiple worker threads execute this pipeline concurrently.
 
-Core logic can be found in:
+As the system evolves, the crawler transitions from in-memory
+coordination to **distributed coordination using Redis**, enabling
+multiple crawler nodes to share work.
 
--   `Main.java`
--   `Crawler.java`
+Core entry points:
+
+- `Main.java` — composition root (wires dependencies)
+- `Crawler.java` — represents a crawler node
 
 ------------------------------------------------------------------------
 
@@ -29,56 +32,180 @@ Core logic can be found in:
 
 This project focuses on:
 
--   clean **object-oriented design**
--   clear **separation of responsibilities**
--   preparing the crawler architecture to evolve from a **single node**
-    to a **distributed system**
+- clean **object-oriented design (OOP)**
+- clear **separation of responsibilities**
+- extensibility via **interfaces and composition**
+- evolving from a **single-node system** to a **distributed system**
 
-Key components include:
+Key components:
 
--   `Crawler` -- orchestrates the crawling process
--   `ComponentFactory` -- centralizes crawler dependency creation
--   `WorkerTask` -- executes the crawl pipeline
--   `Fetcher` -- retrieves web pages
--   `Parser` -- extracts text and links
--   `Storage` -- handles output
--   `VisitedTracker` -- prevents duplicate crawling
+- `Crawler` — orchestrates crawling at the node level
+- `WorkerTask` — executes the crawl pipeline
+- `Frontier` — abstraction for URL storage
+- `VisitedTracker` — abstraction for deduplication
+- `Fetcher` — retrieves web pages
+- `Parser` — extracts links and content
+- `Storage` — handles output
+- `ComponentFactory` — centralizes dependency creation
 
 ------------------------------------------------------------------------
 
 ## Current Architecture (LLD)
 
-The current implementation represents a **single-node crawler worker**.
+The current implementation began as a **single-node crawler worker**.
 
 Multiple threads consume URLs from a shared queue and process them
 concurrently.
 
-![Crawler LLD Diagram](design/01_crawler_lld.png)
+![Crawler LLD Diagram](docs/crawler_lld.png)
 
 ------------------------------------------------------------------------
 
-## Future Direction
+## Design Evolution
 
-The architecture is designed to evolve toward a distributed crawler:
+The system evolves in stages:
 
-1.  Single-node multithreaded worker (current)
-2.  Component abstraction and factories
-3.  Pluggable frontier (queue abstraction)
-4.  Distributed crawler nodes
-5.  Distributed storage and deduplication
+### 1. Single-Node Multithreaded Crawler
 
-The goal is to gradually move from a **local crawler worker** to a
-**scalable distributed crawling system**.
+- in-memory queue
+- shared visited set
+- thread pool execution
+
+---
+
+### 2. Component Abstraction
+
+- introduced interfaces (`Frontier`, `Fetcher`, etc.)
+- decoupled implementation from usage
+- enabled pluggable components
+
+---
+
+### 3. Distributed Frontier (Redis)
+
+- replaced in-memory queue with `RedisFrontier`
+- multiple crawler nodes share a central queue
+- enables horizontal scaling
+
+---
+
+### 4. Distributed Deduplication
+
+- introduced `RedisVisitedTracker`
+- prevents duplicate crawling across nodes
+
+---
+
+### 5. Scheduler (Decorator Pattern)
+
+- introduced `FrontierScheduler` as a **decorator**
+- wraps a shared frontier (e.g., Redis)
+- adds crawl politeness (rate limiting per host)
+- keeps storage and decision logic separate
+
+Execution flow:
+
+Worker → Scheduler → Frontier → Redis
+
+------------------------------------------------------------------------
+
+## Design Patterns Used
+
+- **Strategy Pattern**
+  - `Frontier` interface with multiple implementations
+- **Decorator Pattern**
+  - `FrontierScheduler` adds scheduling behavior without modifying storage
+- **Factory Pattern**
+  - `ComponentFactory` creates pluggable components
+- **Dependency Injection**
+  - dependencies are created in `Main` and passed to the system
+
+------------------------------------------------------------------------
+
+## Distributed Architecture
+
+The system supports multiple crawler nodes:
+
+```
+Crawler Node A
+Crawler Node B
+Crawler Node C
+        ↓
+   Redis (Frontier + Visited)
+```
+
+Each node:
+
+- pulls URLs from Redis
+- processes them independently
+- contributes results back to the shared system
+
+------------------------------------------------------------------------
+
+## Design Alternatives
+
+This project explores multiple scheduling approaches:
+
+- **Decorator-based Scheduler**  
+  Uses a shared frontier wrapped by a scheduler (`FrontierScheduler`)
+  to enforce politeness while keeping concerns separated.
+
+- **Host-Based Frontier (next stage)**  
+  Moves scheduling into the frontier using per-host queues for improved
+  efficiency and avoids retry loops.
+
+The decorator-based implementation is available in:
+`feature/decorator-scheduler` branch.
 
 ------------------------------------------------------------------------
 
 ## Running the Project
 
-Compile and run the crawler:
+### Compile and run (simple mode)
 
-mvn clean compile
-mvn exec:java -Dexec.mainClass="Main"
+```bash
+javac Main.java
+java Main
+```
 
-The crawler will start from a seed URL and process pages using multiple
-worker threads.
+### Distributed mode (with Redis)
 
+Start Redis:
+
+```bash
+docker run -p 6379:6379 redis
+```
+
+Run the crawler:
+
+```bash
+java -Dfrontier.type=redis -Dvisited.type=redis -jar target/mtWebCrawler-1.0-SNAPSHOT.jar
+```
+
+To simulate multiple nodes, run the command in multiple terminals.
+
+------------------------------------------------------------------------
+
+## Future Improvements
+
+- host-based frontier (efficient scheduling)
+- min-heap scheduler (no retry loops)
+- global politeness coordination
+- priority-based crawling
+- persistent storage (S3 / database)
+- fault tolerance and retry strategies
+
+------------------------------------------------------------------------
+
+## Summary
+
+This project demonstrates how a simple crawler evolves into a
+**distributed system** through:
+
+- abstraction
+- composition
+- separation of concerns
+- incremental architectural improvements
+
+The goal is to model the core ideas behind real-world crawling systems
+while keeping the design clear and extensible.
