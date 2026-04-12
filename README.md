@@ -57,7 +57,7 @@ The current implementation began as a **single-node crawler worker**.
 Multiple threads consume URLs from a shared queue and process them
 concurrently.
 
-![Crawler LLD Diagram](docs/crawler_lld.png)
+![Crawler LLD Diagram](design/01_crawler_lld.png)
 
 ------------------------------------------------------------------------
 
