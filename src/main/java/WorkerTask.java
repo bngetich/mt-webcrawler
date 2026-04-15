@@ -1,25 +1,24 @@
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 public class WorkerTask implements Runnable {
 
-    private final Frontier frontier;
-    private final VisitedTracker visited;
-    private final Fetcher fetcher;
+    private final BlockingQueue<Page> fetchedPages;
     private final Parser parser;
+    private final Frontier frontier;
     private final Storage storage;
 
     public WorkerTask(
-            Frontier frontier,
-            VisitedTracker visited,
-            Fetcher fetcher,
+            BlockingQueue<Page> fetchedPages,
             Parser parser,
+            Frontier frontier,
             Storage storage) {
 
-        this.frontier = frontier;
-        this.visited = visited;
-        this.fetcher = fetcher;
+        this.fetchedPages = fetchedPages;
         this.parser = parser;
+        this.frontier = frontier;
         this.storage = storage;
     }
 
@@ -28,21 +27,15 @@ public class WorkerTask implements Runnable {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                String url = frontier.getNextUrl();  // blocks until a url exists OR interrupt happens
+                Page page = fetchedPages.take();
 
-                if (!visited.markVisited(url)) {
-                    continue;
-                }
-
-                Document doc = fetcher.fetch(url);
-                if (doc == null) continue;
-
+                Document doc = Jsoup.parse(page.getContent(), page.getUrl());
                 List<String> links = parser.extractLinks(doc);
                 String text = parser.extractText(doc);
 
-                storage.save(url, text);
+                storage.save(page.getUrl(), text);
 
-                for (String link : links) {
+                for(String link : links){
                     frontier.addUrl(link);
                 }
 

@@ -1,7 +1,7 @@
 public class ComponentFactory {
 
     public static Fetcher createFetcher() {
-        return new JsoupFetcher();
+        return new AsyncHttpFetcher();
     }
 
     public static Parser createParser() {

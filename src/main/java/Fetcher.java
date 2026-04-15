@@ -1,6 +1,8 @@
 import org.jsoup.nodes.Document;
 
+import java.util.concurrent.CompletableFuture;
+
 public interface Fetcher {
 
-    public Document fetch(String url) throws Exception;
+    public CompletableFuture<Page> fetch(String url);
 }
