@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="2000" viewBox="0 0 1200 2000">
+  <defs>
+    <style>
+      .box { fill: #f4f4f4; stroke: #222; stroke-width: 3; }
+      .txt { font-family: "Segoe UI", Arial, sans-serif; font-size: 48px; fill: #222; text-anchor: middle; }
+      .sub { font-family: "Segoe UI", Arial, sans-serif; font-size: 42px; fill: #222; text-anchor: middle; }
+      .arrow { stroke: #222; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+      .label { font-family: "Segoe UI", Arial, sans-serif; font-size: 48px; fill: #222; text-anchor: middle; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="9" refX="10" refY="4.5" orient="auto">
+      <polygon points="0 0, 12 4.5, 0 9" fill="#222"/>
+    </marker>
+  </defs>
+
+  <!-- Frontier -->
+  <rect class="box" x="60" y="40" rx="50" ry="50" width="1080" height="320"/>
+  <text class="txt" x="600" y="190">Frontier</text>
+  <text class="sub" x="600" y="260">(URL Queue)</text>
+
+  <!-- Arrow 1 -->
+  <line class="arrow" x1="600" y1="380" x2="600" y2="540"/>
+  <text class="label" x="600" y="490">URL</text>
+
+  <!-- Async Fetcher -->
+  <rect class="box" x="30" y="560" rx="50" ry="50" width="1140" height="360"/>
+  <text class="txt" x="600" y="740">Async Fetcher</text>
+  <text class="sub" x="600" y="820">fetch(url) -&gt; CompletableFuture&lt;Page&gt;</text>
+
+  <!-- Arrow 2 -->
+  <line class="arrow" x1="600" y1="940" x2="600" y2="1120"/>
+  <text class="label" x="600" y="1060">thenAccept()</text>
+
+  <!-- BlockingQueue -->
+  <rect class="box" x="30" y="1140" rx="50" ry="50" width="1140" height="300"/>
+  <text class="txt" x="600" y="1305">BlockingQueue&lt;Page&gt;</text>
+
+  <!-- Arrow 3 -->
+  <line class="arrow" x1="600" y1="1460" x2="600" y2="1620"/>
+  <text class="label" x="600" y="1560">take()</text>
+
+  <!-- Worker Thread Pool -->
+  <rect class="box" x="30" y="1640" rx="50" ry="50" width="1140" height="300"/>
+  <text class="txt" x="600" y="1810">Worker Thread Pool</text>
+
+  <!-- Arrow back to frontier -->
+  <line class="arrow" x1="600" y1="1960" x2="600" y2="1992"/>
+  <text class="txt" x="600" y="1998">Frontier</text>
+</svg>
