@@ -11,11 +11,11 @@ just crawling functionality.
 
 ## Overview
 
-The crawler processes pages using a pipeline:
+The crawler processes pages using a two-stage pipeline:
 
-URL → Fetch → Parse → Extract Links → Store
+URL → Async Fetch (I/O) → FetchedPageQueue → Worker Parse/Store (CPU)
 
-Multiple worker threads execute this pipeline concurrently.
+This separation keeps network I/O independent from parsing and storage.
 
 As the system evolves, the crawler transitions from in-memory
 coordination to **distributed coordination using Redis**, enabling
@@ -40,10 +40,10 @@ This project focuses on:
 Key components:
 
 - `Crawler` — orchestrates crawling at the node level
-- `WorkerTask` — executes the crawl pipeline
+- `WorkerTask` — consumes fetched pages and performs parse/store/link expansion
 - `Frontier` — abstraction for URL storage
 - `VisitedTracker` — abstraction for deduplication
-- `Fetcher` — retrieves web pages
+- `Fetcher` — asynchronously retrieves web pages
 - `Parser` — extracts links and content
 - `Storage` — handles output
 - `ComponentFactory` — centralizes dependency creation
@@ -58,6 +58,13 @@ Multiple threads consume URLs from a shared queue and process them
 concurrently.
 
 ![Crawler LLD Diagram](design/01_crawler_lld.png)
+
+### Async I/O and CPU Worker Separation (LLD)
+
+This LLD shows the async fetch stage (I/O) separated from multithreaded
+blocking worker processing (CPU):
+
+![Async I/O and CPU Worker Separation](design/02_crawler-lld-async-queue-threadpool.png)
 
 ------------------------------------------------------------------------
 
@@ -106,6 +113,15 @@ The system evolves in stages:
 Execution flow:
 
 Worker → Scheduler → Frontier → Redis
+
+---
+
+### 6. Async Fetch + Processing Queue
+
+- `Fetcher` returns `CompletableFuture<Page>`
+- network fetch and CPU parsing are decoupled
+- fetched pages are passed through a blocking queue to worker threads
+- architecture is now ready for scaling fetch and processing independently
 
 ------------------------------------------------------------------------
 
@@ -164,8 +180,8 @@ The decorator-based implementation is available in:
 ### Compile and run (simple mode)
 
 ```bash
-javac Main.java
-java Main
+mvn -q -DskipTests compile
+mvn -q exec:java -Dexec.mainClass=Main
 ```
 
 ### Distributed mode (with Redis)
