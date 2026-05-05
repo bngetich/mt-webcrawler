@@ -6,66 +6,83 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class HostBasedFrontier implements Frontier {
 
     private final Map<String, Queue<String>> hostQueues = new ConcurrentHashMap<>();
     private final PriorityQueue<HostEntry> heap = new PriorityQueue<>();
-
     private final Set<String> inHeap = ConcurrentHashMap.newKeySet();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition notEmpty = lock.newCondition();
+    private final Condition delayReady = lock.newCondition();
+
 
     private final long delayMs = 1000;
 
     @Override
-    public synchronized void addUrl(String url){
+    public void addUrl(String url)  {
         String host = getHost(url);
 
         if(host == null) return;
 
-        hostQueues
-                .computeIfAbsent(host, h -> new ConcurrentLinkedQueue<>())
-                .offer(url);
+        lock.lock();
+        try {
+            hostQueues
+                    .computeIfAbsent(host, h -> new ConcurrentLinkedQueue<>())
+                    .offer(url);
 
-        if(!inHeap.contains(host)){
-            heap.offer(new HostEntry(host, System.currentTimeMillis()));
-            inHeap.add(host);
+            if (!inHeap.contains(host)) {
+                heap.offer(new HostEntry(host, System.currentTimeMillis()));
+                inHeap.add(host);
+            }
+
+            notEmpty.signal();
+
+        } finally {
+            lock.unlock();
         }
-
-        notifyAll();
     }
 
     @Override
-    public synchronized String getNextUrl() throws InterruptedException {
-        while (true) {
+    public String getNextUrl() throws InterruptedException {
+        lock.lock();
+        try {
+            while (true) {
 
-            if(heap.isEmpty()) {
-              wait();
-              continue;
+                while (heap.isEmpty()) {
+                    notEmpty.await();
+                }
+
+                HostEntry entry = heap.peek();
+                long now = System.currentTimeMillis();
+
+                if (entry.nextAvailableTime > now) {
+                    long waitTime = entry.nextAvailableTime - now;
+                    delayReady.awaitNanos(waitTime * 1_000_000);
+                    continue;
+                }
+
+                heap.poll();
+
+                Queue<String> queue = hostQueues.get(entry.host);
+                String url = queue.poll();
+
+                if (url == null) {
+                    inHeap.remove(entry.host);
+                    continue;
+                }
+
+                entry.nextAvailableTime = System.currentTimeMillis() + delayMs;
+                heap.offer(entry);
+
+                delayReady.signal();
+
+                return url;
             }
-
-            HostEntry entry = heap.peek();
-            long now = System.currentTimeMillis();
-
-            if(entry.nextAvailableTime > now){
-                long waitTime = entry.nextAvailableTime - now;
-                wait(waitTime);
-                continue;
-            }
-
-            heap.poll();
-
-            Queue<String> queue = hostQueues.get(entry.host);
-            String url = queue.poll();
-
-            if(url == null){
-                inHeap.remove(entry.host);
-                continue;
-            }
-
-            entry.nextAvailableTime = System.currentTimeMillis() + delayMs;
-            heap.offer(entry);
-
-            return url;
+        } finally {
+            lock.unlock();
         }
     }
     private String getHost(String url) {
