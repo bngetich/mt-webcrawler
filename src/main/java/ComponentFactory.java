@@ -15,7 +15,14 @@ public class ComponentFactory {
     public static Frontier createFrontier() {
         String type = System.getProperty("frontier.type", "memory");
 
-        if(type.equals("redis")) {
+        if ("partitioned-redis".equalsIgnoreCase(type)) {
+            int numPartitions = Integer.parseInt(System.getProperty("frontier.partitions", "3"));
+            int assignedPartition = Integer.parseInt(System.getProperty("frontier.assignedPartition", "0"));
+
+            return new PartitionedRedisFrontier(numPartitions, assignedPartition);
+        }
+
+        if ("redis".equalsIgnoreCase(type)) {
             return new RedisFrontier();
         }
 
