@@ -34,12 +34,6 @@ public class PartitionedRedisFrontier implements Frontier {
         try (Jedis jedis = pool.getResource()) {
             jedis.lpush(hostQueueKey, url);
 
-            System.out.println(
-                    "[ADD]        host=" + host +
-                            " partition=" + partition +
-                            " url=" + url
-            );
-
             Double score = jedis.zscore(schedulerKey, host);
 
             if (score == null) {
@@ -47,11 +41,6 @@ public class PartitionedRedisFrontier implements Frontier {
                         schedulerKey,
                         System.currentTimeMillis(),
                         host
-                );
-
-                System.out.println(
-                        "[SCHEDULE]   host=" + host +
-                                " partition=" + partition
                 );
             }
         }
@@ -63,7 +52,7 @@ public class PartitionedRedisFrontier implements Frontier {
 
         while (true) {
             try (Jedis jedis = pool.getResource()) {
-                List<Tuple> entries = jedis.zrangeWithScores(schedulerKey, 0, 0);
+                List<Tuple> entries = jedis.zpopmin(schedulerKey, 1);
 
                 if (entries.isEmpty()) {
                     Thread.sleep(100);
@@ -79,17 +68,15 @@ public class PartitionedRedisFrontier implements Frontier {
                 if (nextAvailableTime > now) {
                     long waitTime = nextAvailableTime - now;
 
-                    System.out.println(
-                            "[WAIT]       partition=" + assignedPartition +
-                                    " host=" + host +
-                                    " waitMs=" + waitTime
+                    jedis.zadd(
+                            schedulerKey,
+                            nextAvailableTime,
+                            host
                     );
 
                     Thread.sleep(waitTime);
                     continue;
                 }
-
-                jedis.zrem(schedulerKey, host);
 
                 String hostQueueKey = getHostQueueKey(assignedPartition, host);
 
@@ -99,12 +86,6 @@ public class PartitionedRedisFrontier implements Frontier {
                     continue;
                 }
 
-                System.out.println(
-                        "[DISPATCH]   partition=" + assignedPartition +
-                                " host=" + host +
-                                " url=" + url
-                );
-
                 Long remaining = jedis.llen(hostQueueKey);
 
                 if (remaining > 0) {
@@ -112,13 +93,6 @@ public class PartitionedRedisFrontier implements Frontier {
                             schedulerKey,
                             now + delayMs,
                             host
-                    );
-
-                    System.out.println(
-                            "[RESCHEDULE] partition=" + assignedPartition +
-                                    " host=" + host +
-                                    " nextAvailable=" + (now + delayMs) +
-                                    " remainingUrls=" + remaining
                     );
                 }
 
