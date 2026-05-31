@@ -49,6 +49,14 @@ public class PartitionedRedisFrontier implements Frontier {
         return "crawler:frontier:partition:" + partition;
     }
 
+    private String getSchedulerKey(int partition) {
+        return "crawler:scheduler:partition:" + partition;
+    }
+
+    private String getHostQueueKey(int partition, String host) {
+        return "crawler:partition:" + partition + ":host:" + host;
+    }
+
     private String getHost(String url) {
         try {
             return new URI(url).getHost();
