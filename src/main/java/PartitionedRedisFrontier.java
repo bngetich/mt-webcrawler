@@ -23,15 +23,17 @@ public class PartitionedRedisFrontier implements Frontier {
 
         int partition = router.getPartition(host);
 
-        // DEBUG
-        System.out.println(
-                host + " -> partition " + partition
-        );
-
-        String key = getPartitionKey(partition);
+        String schedulerKey = getSchedulerKey(partition);
+        String hostQueueKey = getHostQueueKey(partition, host);
 
         try (Jedis jedis = pool.getResource()) {
-            jedis.lpush(key, url);
+            jedis.lpush(hostQueueKey, url);
+
+            Double score = jedis.zscore(schedulerKey, host);
+
+            if(score == null) {
+                jedis.zadd(schedulerKey, System.currentTimeMillis(), host);
+            }
         }
     }
 
