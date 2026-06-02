@@ -101,6 +101,21 @@ public class PartitionedRedisFrontier implements Frontier {
         }
     }
 
+    public void addRetry(String url, int retryCount){
+        long delayMs = 1000L * (long) Math.pow(2, retryCount);
+        long nextRetryTime = System.currentTimeMillis() + delayMs;
+
+        try (Jedis jedis = pool.getResource()) {
+            jedis.zadd("crawler:retry", nextRetryTime, url + "|" + retryCount);
+        }
+    }
+
+    public void addToDlq(String url) {
+        try (Jedis jedis = pool.getResource()){
+            jedis.lpush("crawler:dlq", url);
+        }
+    }
+
     private String getSchedulerKey(int partition) {
         return "crawler:scheduler:partition:" + partition;
     }

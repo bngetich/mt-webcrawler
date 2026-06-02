@@ -51,18 +51,28 @@ public class Crawler {
                 try {
                     String url = frontier.getNextUrl();
 
-                    if (!visitedTracker.markVisited(url)) {
+                    if (url == null || url.isBlank()) {
                         continue;
                     }
 
                     fetcher.fetch(url)
                             .thenAccept(page -> {
-                                if (page != null) {
-                                    fetchedPages.offer(page);
+                                if (page == null) {
+                                    return;
                                 }
+
+                                if (!visitedTracker.markVisited(url)) {
+                                    return;
+                                }
+
+                                fetchedPages.offer(page);
                             })
                             .exceptionally(ex -> {
                                 ex.printStackTrace();
+
+                                if (frontier instanceof PartitionedRedisFrontier redisFrontier) {
+                                    redisFrontier.addRetry(url, 1);
+                                }
                                 return null;
                             });
 
