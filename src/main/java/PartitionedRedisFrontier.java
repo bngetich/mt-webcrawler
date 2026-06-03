@@ -116,7 +116,7 @@ public class PartitionedRedisFrontier implements Frontier {
         }
     }
 
-    public String getReadyRetryUrl() {
+    public RetryEntry  getReadyRetryUrl() {
         try (Jedis jedis = pool.getResource()) {
             List<Tuple> entries = jedis.zpopmin("crawler:retry", 1);
 
@@ -137,7 +137,7 @@ public class PartitionedRedisFrontier implements Frontier {
             String value = entry.getElement();
             String[] parts = value.split("\\|");
 
-            return parts[0];
+            return new RetryEntry(parts[0], Integer.parseInt(parts[1]));
         }
     }
 

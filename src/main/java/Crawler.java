@@ -69,7 +69,7 @@ public class Crawler {
                             })
                             .exceptionally(ex -> {
                                 ex.printStackTrace();
-
+                                
                                 if (frontier instanceof PartitionedRedisFrontier redisFrontier) {
                                     redisFrontier.addRetry(url, 1);
                                 }
@@ -89,10 +89,10 @@ public class Crawler {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     if(frontier instanceof PartitionedRedisFrontier redisFrontier) {
-                        String retryUrl = redisFrontier.getReadyRetryUrl();
+                        RetryEntry entry = redisFrontier.getReadyRetryUrl();
 
-                        if(retryUrl != null){
-                            frontier.addUrl(retryUrl);
+                        if(entry != null){
+                            frontier.addUrl(entry.getUrl());
                         }
                     }
 
