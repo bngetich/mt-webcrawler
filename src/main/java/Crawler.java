@@ -84,6 +84,28 @@ public class Crawler {
                 }
             }
         });
+
+        dispatcherExecutor.submit(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    if(frontier instanceof PartitionedRedisFrontier redisFrontier) {
+                        String retryUrl = redisFrontier.getReadyRetryUrl();
+
+                        if(retryUrl != null){
+                            frontier.addUrl(retryUrl);
+                        }
+                    }
+
+                    Thread.sleep(100);
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     public void stop() {
