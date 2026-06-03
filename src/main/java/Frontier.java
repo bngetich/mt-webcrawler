@@ -1,5 +1,5 @@
 public interface Frontier {
-    void addUrl(String url);
+    void addTask(CrawlTask task);
 
-    String getNextUrl() throws InterruptedException;
+    CrawlTask getNextTask() throws InterruptedException;
 }

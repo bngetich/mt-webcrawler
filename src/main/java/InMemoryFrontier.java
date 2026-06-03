@@ -2,15 +2,15 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class InMemoryFrontier implements  Frontier{
-    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<CrawlTask> queue = new LinkedBlockingQueue<>();
 
     @Override
-    public void addUrl(String url) {
-        queue.offer(url);
+    public void addTask(CrawlTask task) {
+        queue.offer(task);
     }
 
     @Override
-    public String getNextUrl() throws InterruptedException {
+    public CrawlTask getNextTask() throws InterruptedException {
         return queue.take();
     }
 }

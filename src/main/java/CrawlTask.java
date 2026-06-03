@@ -1,12 +1,9 @@
-public class RetryEntry {
+public class CrawlTask {
 
     private final String url;
     private final int retryCount;
 
-    public RetryEntry(
-            String url,
-            int retryCount) {
-
+    public CrawlTask(String url, int retryCount) {
         this.url = url;
         this.retryCount = retryCount;
     }

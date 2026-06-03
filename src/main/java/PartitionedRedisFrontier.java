@@ -19,7 +19,8 @@ public class PartitionedRedisFrontier implements Frontier {
     }
 
     @Override
-    public void addUrl(String url) {
+    public void addTask(CrawlTask task) {
+        String url = task.getUrl();
         String host = getHost(url);
 
         if (host == null) {
@@ -32,7 +33,7 @@ public class PartitionedRedisFrontier implements Frontier {
         String hostQueueKey = getHostQueueKey(partition, host);
 
         try (Jedis jedis = pool.getResource()) {
-            jedis.lpush(hostQueueKey, url);
+            jedis.lpush(hostQueueKey, serialize(task));
 
             Double score = jedis.zscore(schedulerKey, host);
 
@@ -47,7 +48,7 @@ public class PartitionedRedisFrontier implements Frontier {
     }
 
     @Override
-    public String getNextUrl() throws InterruptedException {
+    public CrawlTask getNextTask() throws InterruptedException {
         String schedulerKey = getSchedulerKey(assignedPartition);
 
         while (true) {
@@ -80,9 +81,9 @@ public class PartitionedRedisFrontier implements Frontier {
 
                 String hostQueueKey = getHostQueueKey(assignedPartition, host);
 
-                String url = jedis.rpop(hostQueueKey);
+                String value = jedis.rpop(hostQueueKey);
 
-                if (url == null) {
+                if (value == null) {
                     continue;
                 }
 
@@ -96,31 +97,31 @@ public class PartitionedRedisFrontier implements Frontier {
                     );
                 }
 
-                return url;
+                return deserialize(value);
             }
         }
     }
 
-    public void addRetry(String url, int retryCount){
-        long delayMs = 1000L * (long) Math.pow(2, retryCount);
+    public void addRetry(CrawlTask task) {
+        long delayMs = 1000L * (long) Math.pow(2, task.getRetryCount());
         long nextRetryTime = System.currentTimeMillis() + delayMs;
 
         try (Jedis jedis = pool.getResource()) {
-            jedis.zadd("crawler:retry", nextRetryTime, url + "|" + retryCount);
+            jedis.zadd("crawler:retry", nextRetryTime, serialize(task));
         }
     }
 
-    public void addToDlq(String url) {
-        try (Jedis jedis = pool.getResource()){
-            jedis.lpush("crawler:dlq", url);
+    public void addToDlq(CrawlTask task) {
+        try (Jedis jedis = pool.getResource()) {
+            jedis.lpush("crawler:dlq", serialize(task));
         }
     }
 
-    public RetryEntry  getReadyRetryUrl() {
+    public CrawlTask getReadyRetry() {
         try (Jedis jedis = pool.getResource()) {
             List<Tuple> entries = jedis.zpopmin("crawler:retry", 1);
 
-            if (entries.isEmpty()){
+            if (entries.isEmpty()) {
                 return null;
             }
 
@@ -129,16 +130,26 @@ public class PartitionedRedisFrontier implements Frontier {
             long nextRetryTime = (long) entry.getScore();
             long now = System.currentTimeMillis();
 
-            if(nextRetryTime > now){
+            if (nextRetryTime > now) {
                 jedis.zadd("crawler:retry", nextRetryTime, entry.getElement());
                 return null;
             }
 
             String value = entry.getElement();
-            String[] parts = value.split("\\|");
-
-            return new RetryEntry(parts[0], Integer.parseInt(parts[1]));
+            return deserialize(value);
         }
+    }
+
+    private String serialize(CrawlTask task) {
+        return task.getUrl() + "|" + task.getRetryCount();
+    }
+
+    private CrawlTask deserialize(String value) {
+        String[] parts = value.split("\\|");
+        String url = parts[0];
+        int retryCount = Integer.parseInt(parts[1]);
+
+        return new CrawlTask(url, retryCount);
     }
 
     private String getSchedulerKey(int partition) {
