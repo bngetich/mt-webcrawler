@@ -29,7 +29,6 @@ public class AsyncHttpFetcher implements Fetcher {
         return client
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(resp -> new Page(url, resp.body()))
-                .exceptionally(ex -> null)
                 .whenComplete((r, t) -> inflight.release());
 
     }
