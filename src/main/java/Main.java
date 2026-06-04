@@ -5,7 +5,7 @@ public class Main {
         VisitedTracker visited = ComponentFactory.createVisitedTracker();
 
         // seed once
-        frontier.addUrl("https://example.com");
+        frontier.addTask(new CrawlTask("https://example.com", 0));
 
         Crawler crawler = new Crawler(5, frontier, visited);
 

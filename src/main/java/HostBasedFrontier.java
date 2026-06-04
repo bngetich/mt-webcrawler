@@ -11,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class HostBasedFrontier implements Frontier {
 
-    private final Map<String, Queue<String>> hostQueues = new ConcurrentHashMap<>();
+    private final Map<String, Queue<CrawlTask>> hostQueues = new ConcurrentHashMap<>();
     private final PriorityQueue<HostEntry> heap = new PriorityQueue<>();
     private final Set<String> inHeap = ConcurrentHashMap.newKeySet();
     private final ReentrantLock lock = new ReentrantLock();
@@ -22,7 +22,8 @@ public class HostBasedFrontier implements Frontier {
     private final long delayMs = 1000;
 
     @Override
-    public void addUrl(String url)  {
+    public void addTask(CrawlTask task)  {
+        String url = task.getUrl();
         String host = getHost(url);
 
         if(host == null) return;
@@ -31,7 +32,7 @@ public class HostBasedFrontier implements Frontier {
         try {
             hostQueues
                     .computeIfAbsent(host, h -> new ConcurrentLinkedQueue<>())
-                    .offer(url);
+                    .offer(task);
 
             if (!inHeap.contains(host)) {
                 heap.offer(new HostEntry(host, System.currentTimeMillis()));
@@ -46,7 +47,7 @@ public class HostBasedFrontier implements Frontier {
     }
 
     @Override
-    public String getNextUrl() throws InterruptedException {
+    public CrawlTask getNextTask() throws InterruptedException {
         lock.lock();
         try {
             while (true) {
@@ -66,10 +67,10 @@ public class HostBasedFrontier implements Frontier {
 
                 heap.poll();
 
-                Queue<String> queue = hostQueues.get(entry.host);
-                String url = queue.poll();
+                Queue<CrawlTask> queue = hostQueues.get(entry.host);
+                CrawlTask task = queue.poll();
 
-                if (url == null) {
+                if (task == null) {
                     inHeap.remove(entry.host);
                     continue;
                 }
@@ -79,7 +80,7 @@ public class HostBasedFrontier implements Frontier {
 
                 delayReady.signal();
 
-                return url;
+                return task;
             }
         } finally {
             lock.unlock();

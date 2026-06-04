@@ -13,14 +13,14 @@ public class RedisFrontier implements Frontier {
     }
 
     @Override
-    public void addUrl(String url) {
+    public void addTask(CrawlTask task) {
         try(Jedis jedis = pool.getResource()){
-            jedis.lpush(QUEUE_KEY, url);
+            jedis.lpush(QUEUE_KEY, serialize(task));
         }
     }
 
     @Override
-    public String getNextUrl() {
+    public CrawlTask getNextTask() {
         try(Jedis jedis = pool.getResource()){
             // 0 = block forever until item exists
             /* redis allows blocking on multiple keys
@@ -29,7 +29,16 @@ public class RedisFrontier implements Frontier {
              * result = ["crawler:frontier", "https://example.com"]
              */
             List<String> result = jedis.brpop(0, QUEUE_KEY);
-            return result.get(1);
+            return deserialize(result.get(1));
         }
+    }
+
+    private String serialize(CrawlTask task) {
+        return task.getUrl() + "|" + task.getRetryCount();
+    }
+
+    private CrawlTask deserialize(String value) {
+        String[] parts = value.split("\\|");
+        return new CrawlTask(parts[0], Integer.parseInt(parts[1]));
     }
 }

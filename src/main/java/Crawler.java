@@ -4,6 +4,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Crawler {
+    private static final int MAX_RETRIES = 3;
 
     private final ExecutorService processExecutor;
     private final ExecutorService dispatcherExecutor;
@@ -21,7 +22,7 @@ public class Crawler {
                    Frontier frontier,
                    VisitedTracker visitedTracker) {
         this.processExecutor = Executors.newFixedThreadPool(threads);
-        this.dispatcherExecutor = Executors.newSingleThreadExecutor();
+        this.dispatcherExecutor = Executors.newFixedThreadPool(2);
 
         this.frontier = frontier;
         this.visitedTracker = visitedTracker;
@@ -49,22 +50,54 @@ public class Crawler {
         dispatcherExecutor.submit(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    String url = frontier.getNextUrl();
+                    CrawlTask task = frontier.getNextTask();
+                    String url = task.getUrl();
 
-                    if (!visitedTracker.markVisited(url)) {
+                    if (url == null || url.isBlank()) {
                         continue;
                     }
 
                     fetcher.fetch(url)
                             .thenAccept(page -> {
-                                if (page != null) {
-                                    fetchedPages.offer(page);
+                                if (page == null) {
+                                    handleFetchFailure(task);
+                                    return;
                                 }
+
+                                if (!visitedTracker.markVisited(url)) {
+                                    return;
+                                }
+
+                                fetchedPages.offer(page);
                             })
                             .exceptionally(ex -> {
                                 ex.printStackTrace();
+                                handleFetchFailure(task);
                                 return null;
                             });
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        // Retry dispatcher
+        dispatcherExecutor.submit(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    if(frontier instanceof PartitionedRedisFrontier redisFrontier) {
+                        CrawlTask retry = redisFrontier.getReadyRetry();
+
+                        if(retry != null){
+                            frontier.addTask(retry);
+                        }
+                    }
+
+                    Thread.sleep(100);
 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -79,5 +112,22 @@ public class Crawler {
     public void stop() {
         dispatcherExecutor.shutdownNow();
         processExecutor.shutdownNow();
+    }
+
+    private void handleFetchFailure(CrawlTask task) {
+        if (!(frontier instanceof PartitionedRedisFrontier redisFrontier)) {
+            return;
+        }
+
+        if (task.getRetryCount() >= MAX_RETRIES) {
+            redisFrontier.addToDlq(task);
+        } else {
+            redisFrontier.addRetry(
+                    new CrawlTask(
+                            task.getUrl(),
+                            task.getRetryCount() + 1
+                    )
+            );
+        }
     }
 }

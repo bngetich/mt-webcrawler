@@ -36,7 +36,7 @@ public class WorkerTask implements Runnable {
                 storage.save(page.getUrl(), text);
 
                 for(String link : links){
-                    frontier.addUrl(link);
+                    frontier.addTask(new CrawlTask(link, 0));
                 }
 
             } catch (InterruptedException e) {
