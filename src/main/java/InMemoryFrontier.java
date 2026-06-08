@@ -13,4 +13,9 @@ public class InMemoryFrontier implements  Frontier{
     public CrawlTask getNextTask() throws InterruptedException {
         return queue.take();
     }
+
+    @Override
+    public long size() {
+        return queue.size();
+    }
 }

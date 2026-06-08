@@ -33,6 +33,13 @@ public class RedisFrontier implements Frontier {
         }
     }
 
+    @Override
+    public long size() {
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.llen(QUEUE_KEY);
+        }
+    }
+
     private String serialize(CrawlTask task) {
         return task.getUrl() + "|" + task.getRetryCount();
     }

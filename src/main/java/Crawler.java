@@ -66,11 +66,6 @@ public class Crawler {
 
                     fetcher.fetch(url)
                             .thenAccept(page -> {
-                                if (page == null) {
-                                    handleFetchFailure(task);
-                                    return;
-                                }
-
                                 if (!visitedTracker.markVisited(url)) {
                                     return;
                                 }
@@ -156,6 +151,11 @@ public class Crawler {
             System.out.println(
                     "DLQ: " +
                             metrics.getDlqCount()
+            );
+
+            System.out.println(
+                    "Frontier: " +
+                            frontier.size()
             );
 
             System.out.println(

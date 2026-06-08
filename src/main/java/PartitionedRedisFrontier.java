@@ -102,6 +102,22 @@ public class PartitionedRedisFrontier implements Frontier {
         }
     }
 
+    @Override
+    public long size() {
+        String schedulerKey = getSchedulerKey(assignedPartition);
+
+        try (Jedis jedis = pool.getResource()) {
+            long pending = 0;
+            List<String> hosts = jedis.zrange(schedulerKey, 0, -1);
+
+            for (String host : hosts) {
+                pending += jedis.llen(getHostQueueKey(assignedPartition, host));
+            }
+
+            return pending + jedis.zcard("crawler:retry");
+        }
+    }
+
     public void addRetry(CrawlTask task) {
         long delayMs = 1000L * (long) Math.pow(2, task.getRetryCount());
         long nextRetryTime = System.currentTimeMillis() + delayMs;
