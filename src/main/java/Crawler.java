@@ -16,13 +16,15 @@ public class Crawler {
     private final Storage storage;
     private final BlockingQueue<Page> fetchedPages;
 
+    private final CrawlerMetrics metrics;
+
     private final int threads;
 
     public Crawler(int threads,
                    Frontier frontier,
                    VisitedTracker visitedTracker) {
         this.processExecutor = Executors.newFixedThreadPool(threads);
-        this.dispatcherExecutor = Executors.newFixedThreadPool(2);
+        this.dispatcherExecutor = Executors.newFixedThreadPool(3);
 
         this.frontier = frontier;
         this.visitedTracker = visitedTracker;
@@ -30,6 +32,7 @@ public class Crawler {
         this.parser = ComponentFactory.createParser();
         this.storage = ComponentFactory.createStorage();
         this.fetchedPages = new LinkedBlockingQueue<>();
+        this.metrics = new CrawlerMetrics();
         this.threads = threads;
     }
 
@@ -69,6 +72,8 @@ public class Crawler {
                                 }
 
                                 fetchedPages.offer(page);
+                                metrics.incrementFetched();
+
                             })
                             .exceptionally(ex -> {
                                 ex.printStackTrace();
@@ -107,7 +112,56 @@ public class Crawler {
                 }
             }
         });
+
+        // Metrics reporter
+        /* Metrics reporting is not dispatching work.
+         * Consider using a ScheduledExecutorService for periodic reporting.
+         */
+        dispatcherExecutor.submit(() -> {
+
+            while (!Thread.currentThread().isInterrupted()) {
+
+                try {
+
+                    Thread.sleep(30000);
+
+                    System.out.println(
+                            "\n=== CRAWLER METRICS ==="
+                    );
+
+                    System.out.println(
+                            "Fetched: " +
+                                    metrics.getPagesFetched()
+                    );
+
+                    System.out.println(
+                            "Failed: " +
+                                    metrics.getPagesFailed()
+                    );
+
+                    System.out.println(
+                            "Retries: " +
+                                    metrics.getRetriesScheduled()
+                    );
+
+                    System.out.println(
+                            "DLQ: " +
+                                    metrics.getDlqCount()
+                    );
+
+                    System.out.println(
+                            "=======================\n"
+                    );
+
+                } catch (InterruptedException e) {
+
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
     }
+
 
     public void stop() {
         dispatcherExecutor.shutdownNow();
@@ -119,8 +173,11 @@ public class Crawler {
             return;
         }
 
+        metrics.incrementFailed();
+
         if (task.getRetryCount() >= MAX_RETRIES) {
             redisFrontier.addToDlq(task);
+            metrics.incrementDlq();
         } else {
             redisFrontier.addRetry(
                     new CrawlTask(
@@ -128,6 +185,8 @@ public class Crawler {
                             task.getRetryCount() + 1
                     )
             );
+
+            metrics.incrementRetries();
         }
     }
 }
