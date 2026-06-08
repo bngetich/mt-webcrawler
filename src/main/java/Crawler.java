@@ -2,12 +2,15 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Crawler {
     private static final int MAX_RETRIES = 3;
 
     private final ExecutorService processExecutor;
     private final ExecutorService dispatcherExecutor;
+    private final ScheduledExecutorService metricsExecutor;
 
     private final Frontier frontier;
     private final VisitedTracker visitedTracker;
@@ -24,7 +27,8 @@ public class Crawler {
                    Frontier frontier,
                    VisitedTracker visitedTracker) {
         this.processExecutor = Executors.newFixedThreadPool(threads);
-        this.dispatcherExecutor = Executors.newFixedThreadPool(3);
+        this.dispatcherExecutor = Executors.newFixedThreadPool(2);
+        this.metricsExecutor = Executors.newSingleThreadScheduledExecutor();
 
         this.frontier = frontier;
         this.visitedTracker = visitedTracker;
@@ -113,59 +117,53 @@ public class Crawler {
             }
         });
 
-        // Metrics reporter
-        /* Metrics reporting is not dispatching work.
-         * Consider using a ScheduledExecutorService for periodic reporting.
-         */
-        dispatcherExecutor.submit(() -> {
-
-            while (!Thread.currentThread().isInterrupted()) {
-
-                try {
-
-                    Thread.sleep(30000);
-
-                    System.out.println(
-                            "\n=== CRAWLER METRICS ==="
-                    );
-
-                    System.out.println(
-                            "Fetched: " +
-                                    metrics.getPagesFetched()
-                    );
-
-                    System.out.println(
-                            "Failed: " +
-                                    metrics.getPagesFailed()
-                    );
-
-                    System.out.println(
-                            "Retries: " +
-                                    metrics.getRetriesScheduled()
-                    );
-
-                    System.out.println(
-                            "DLQ: " +
-                                    metrics.getDlqCount()
-                    );
-
-                    System.out.println(
-                            "=======================\n"
-                    );
-
-                } catch (InterruptedException e) {
-
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        });
+        metricsExecutor.scheduleAtFixedRate(
+                this::reportMetrics,
+                30,
+                30,
+                TimeUnit.SECONDS
+        );
     }
 
 
     public void stop() {
+        metricsExecutor.shutdownNow();
         dispatcherExecutor.shutdownNow();
         processExecutor.shutdownNow();
+    }
+
+    private void reportMetrics() {
+        try {
+            System.out.println(
+                    "\n=== CRAWLER METRICS ==="
+            );
+
+            System.out.println(
+                    "Fetched: " +
+                            metrics.getPagesFetched()
+            );
+
+            System.out.println(
+                    "Failed: " +
+                            metrics.getPagesFailed()
+            );
+
+            System.out.println(
+                    "Retries: " +
+                            metrics.getRetriesScheduled()
+            );
+
+            System.out.println(
+                    "DLQ: " +
+                            metrics.getDlqCount()
+            );
+
+            System.out.println(
+                    "=======================\n"
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void handleFetchFailure(CrawlTask task) {
