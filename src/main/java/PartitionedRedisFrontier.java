@@ -7,6 +7,14 @@ import java.util.List;
 
 public class PartitionedRedisFrontier implements Frontier {
 
+    private static final String POP_AND_DECREMENT_SCRIPT = """
+            local value = redis.call('RPOP', KEYS[1])
+            if value then
+                redis.call('DECR', KEYS[2])
+            end
+            return value
+            """;
+
     private final JedisPool pool;
     private final PartitionRouter router;
     private final int assignedPartition;
@@ -33,17 +41,21 @@ public class PartitionedRedisFrontier implements Frontier {
         String hostQueueKey = getHostQueueKey(partition, host);
 
         try (Jedis jedis = pool.getResource()) {
-            jedis.lpush(hostQueueKey, serialize(task));
-
             Double score = jedis.zscore(schedulerKey, host);
 
+            var transaction = jedis.multi();
+            transaction.lpush(hostQueueKey, serialize(task));
+            transaction.incr(getFrontierSizeKey(partition));
+
             if (score == null) {
-                jedis.zadd(
+                transaction.zadd(
                         schedulerKey,
                         System.currentTimeMillis(),
                         host
                 );
             }
+
+            transaction.exec();
         }
     }
 
@@ -81,7 +93,16 @@ public class PartitionedRedisFrontier implements Frontier {
 
                 String hostQueueKey = getHostQueueKey(assignedPartition, host);
 
-                String value = jedis.rpop(hostQueueKey);
+                Object result = jedis.eval(
+                        POP_AND_DECREMENT_SCRIPT,
+                        List.of(
+                                hostQueueKey,
+                                getFrontierSizeKey(assignedPartition)
+                        ),
+                        List.of()
+                );
+
+                String value = (String) result;
 
                 if (value == null) {
                     continue;
@@ -104,17 +125,9 @@ public class PartitionedRedisFrontier implements Frontier {
 
     @Override
     public long size() {
-        String schedulerKey = getSchedulerKey(assignedPartition);
-
         try (Jedis jedis = pool.getResource()) {
-            long pending = 0;
-            List<String> hosts = jedis.zrange(schedulerKey, 0, -1);
-
-            for (String host : hosts) {
-                pending += jedis.llen(getHostQueueKey(assignedPartition, host));
-            }
-
-            return pending + jedis.zcard("crawler:retry");
+            String size = jedis.get(getFrontierSizeKey(assignedPartition));
+            return size == null ? 0 : Long.parseLong(size);
         }
     }
 
@@ -174,6 +187,10 @@ public class PartitionedRedisFrontier implements Frontier {
 
     private String getHostQueueKey(int partition, String host) {
         return "crawler:partition:" + partition + ":host:" + host;
+    }
+
+    private String getFrontierSizeKey(int partition) {
+        return "crawler:frontier:size:partition:" + partition;
     }
 
     private String getHost(String url) {

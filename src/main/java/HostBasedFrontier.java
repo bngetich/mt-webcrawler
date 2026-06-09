@@ -86,6 +86,20 @@ public class HostBasedFrontier implements Frontier {
             lock.unlock();
         }
     }
+
+    @Override
+    public long size() {
+        lock.lock();
+        try {
+            return hostQueues.values()
+                    .stream()
+                    .mapToLong(Queue::size)
+                    .sum();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     private String getHost(String url) {
         try {
             return new URI(url).getHost();
