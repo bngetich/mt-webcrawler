@@ -71,7 +71,7 @@ public class Crawler {
                                 }
 
                                 fetchedPages.offer(page);
-                                metrics.incrementFetched();
+                                metrics.incrementPagesFetched();
 
                             })
                             .exceptionally(ex -> {
@@ -134,27 +134,27 @@ public class Crawler {
             );
 
             System.out.println(
-                    "Fetched: " +
+                    "Pages fetched: " +
                             metrics.getPagesFetched()
             );
 
             System.out.println(
-                    "Failed: " +
-                            metrics.getPagesFailed()
+                    "Fetch failures: " +
+                            metrics.getFetchFailures()
             );
 
             System.out.println(
-                    "Retries: " +
+                    "Retries scheduled: " +
                             metrics.getRetriesScheduled()
             );
 
             System.out.println(
-                    "DLQ: " +
-                            metrics.getDlqCount()
+                    "Dead-lettered: " +
+                            metrics.getDeadLettered()
             );
 
             System.out.println(
-                    "Frontier: " +
+                    "Frontier size: " +
                             frontier.size()
             );
 
@@ -171,11 +171,11 @@ public class Crawler {
             return;
         }
 
-        metrics.incrementFailed();
+        metrics.incrementFetchFailures();
 
         if (task.getRetryCount() >= MAX_RETRIES) {
             redisFrontier.addToDlq(task);
-            metrics.incrementDlq();
+            metrics.incrementDeadLettered();
         } else {
             redisFrontier.addRetry(
                     new CrawlTask(
@@ -184,7 +184,7 @@ public class Crawler {
                     )
             );
 
-            metrics.incrementRetries();
+            metrics.incrementRetriesScheduled();
         }
     }
 }

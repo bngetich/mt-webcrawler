@@ -3,39 +3,39 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CrawlerMetrics {
 
     private final AtomicLong pagesFetched = new AtomicLong();
-    private final AtomicLong pagesFailed = new AtomicLong();
+    private final AtomicLong fetchFailures = new AtomicLong();
     private final AtomicLong retriesScheduled = new AtomicLong();
-    private final AtomicLong dlqCount = new AtomicLong();
+    private final AtomicLong deadLettered = new AtomicLong();
 
-    public void incrementFetched() {
+    public void incrementPagesFetched() {
         pagesFetched.incrementAndGet();
     }
 
-    public void incrementFailed() {
-        pagesFailed.incrementAndGet();
+    public void incrementFetchFailures() {
+        fetchFailures.incrementAndGet();
     }
 
-    public void incrementRetries() {
+    public void incrementRetriesScheduled() {
         retriesScheduled.incrementAndGet();
     }
 
-    public void incrementDlq() {
-        dlqCount.incrementAndGet();
+    public void incrementDeadLettered() {
+        deadLettered.incrementAndGet();
     }
 
     public long getPagesFetched() {
         return pagesFetched.get();
     }
 
-    public long getPagesFailed() {
-        return pagesFailed.get();
+    public long getFetchFailures() {
+        return fetchFailures.get();
     }
 
     public long getRetriesScheduled() {
         return retriesScheduled.get();
     }
 
-    public long getDlqCount() {
-        return dlqCount.get();
+    public long getDeadLettered() {
+        return deadLettered.get();
     }
 }
