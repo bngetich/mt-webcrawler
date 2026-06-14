@@ -38,4 +38,8 @@ public class ComponentFactory {
 
         return new InMemoryVisitedTracker();
     }
+
+    public static RobotsService createRobotsService() {
+        return new RobotsService(new RedisRobotsCache());
+    }
 }
