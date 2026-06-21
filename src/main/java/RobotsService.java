@@ -6,8 +6,10 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RobotsService {
+public class RobotsService implements HostDelayProvider {
     private static final long ROBOTS_TTL_SECONDS = 24 * 60 * 60;
+
+    private static final long DEFAULT_CRAWL_DELAY_MS = 1000;
 
     private final RobotsCache robotsCache;
     private final HttpClient httpClient;
@@ -38,23 +40,7 @@ public class RobotsService {
             path = "/";
         }
 
-        RobotsRules rules = null;
-
-        try {
-            rules = robotsCache.get(host);
-        } catch (Exception e) {
-            // If the cache is unavailable, fetch rules directly and keep crawling.
-        }
-
-        if (rules == null) {
-            rules = fetchAndParseRules(uri, host);
-
-            try {
-                robotsCache.put(host, rules, ROBOTS_TTL_SECONDS);
-            } catch (Exception e) {
-                // The fetched rules are still usable even if caching fails.
-            }
-        }
+        RobotsRules rules = getRules(uri, host);
 
         return rules.isAllowed(path);
     }
@@ -151,5 +137,48 @@ public class RobotsService {
                 null,
                 System.currentTimeMillis()
         );
+    }
+
+    private RobotsRules getRules(URI uri, String host) {
+        RobotsRules rules = null;
+
+        try {
+            rules = robotsCache.get(host);
+        } catch (RuntimeException e) {
+            // Redis unavailable: continue without the cache.
+        }
+
+        if (rules == null) {
+            rules = fetchAndParseRules(uri, host);
+
+            try {
+                robotsCache.put(host, rules, ROBOTS_TTL_SECONDS);
+            } catch (RuntimeException e) {
+                // Crawling can continue even if caching fails.
+            }
+        }
+
+        return rules;
+    }
+
+    @Override
+    public long getDelayMillis(String url) {
+        URI uri;
+
+        try {
+            uri = URI.create(url);
+        } catch (IllegalArgumentException e) {
+            return DEFAULT_CRAWL_DELAY_MS;
+        }
+
+        String host = uri.getHost();
+
+        if (host == null || host.isBlank()) {
+            return DEFAULT_CRAWL_DELAY_MS;
+        }
+
+        RobotsRules rules = getRules(uri, host);
+
+        return rules.getCrawlDelayMsOrDefault(DEFAULT_CRAWL_DELAY_MS);
     }
 }

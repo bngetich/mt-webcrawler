@@ -12,14 +12,22 @@ public class ComponentFactory {
         return new ConsoleStorage();
     }
 
-    public static Frontier createFrontier() {
+    public static Frontier createFrontier(HostDelayProvider hostDelayProvider) {
         String type = System.getProperty("frontier.type", "memory");
 
         if ("partitioned-redis".equalsIgnoreCase(type)) {
-            int numPartitions = Integer.parseInt(System.getProperty("frontier.partitions", "3"));
-            int assignedPartition = Integer.parseInt(System.getProperty("frontier.assignedPartition", "0"));
+            int numPartitions = Integer.parseInt(
+                    System.getProperty("frontier.partitions", "3")
+            );
+            int assignedPartition = Integer.parseInt(
+                    System.getProperty("frontier.assignedPartition", "0")
+            );
 
-            return new PartitionedRedisFrontier(numPartitions, assignedPartition);
+            return new PartitionedRedisFrontier(
+                    numPartitions,
+                    assignedPartition,
+                    hostDelayProvider
+            );
         }
 
         if ("redis".equalsIgnoreCase(type)) {

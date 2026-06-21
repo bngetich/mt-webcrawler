@@ -18,12 +18,18 @@ public class PartitionedRedisFrontier implements Frontier {
     private final JedisPool pool;
     private final PartitionRouter router;
     private final int assignedPartition;
-    private final long delayMs = 1000;
 
-    public PartitionedRedisFrontier(int numPartitions, int assignedPartition) {
+    private final HostDelayProvider hostDelayProvider;
+
+    public PartitionedRedisFrontier(
+            int numPartitions,
+            int assignedPartition,
+            HostDelayProvider hostDelayProvider
+    ) {
         this.pool = new JedisPool("localhost", 6379);
         this.router = new PartitionRouter(numPartitions);
         this.assignedPartition = assignedPartition;
+        this.hostDelayProvider = hostDelayProvider;
     }
 
     @Override
@@ -108,17 +114,20 @@ public class PartitionedRedisFrontier implements Frontier {
                     continue;
                 }
 
+                CrawlTask task = deserialize(value);
+
                 Long remaining = jedis.llen(hostQueueKey);
 
                 if (remaining > 0) {
+                    long delayMs = hostDelayProvider.getDelayMillis(task.getUrl());
                     jedis.zadd(
                             schedulerKey,
-                            now + delayMs,
+                            System.currentTimeMillis() + delayMs,
                             host
                     );
                 }
 
-                return deserialize(value);
+                return task;
             }
         }
     }
