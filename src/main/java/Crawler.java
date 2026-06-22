@@ -19,19 +19,24 @@ public class Crawler {
     private final Storage storage;
     private final BlockingQueue<Page> fetchedPages;
 
+    private final RobotsService robotsService;
+
     private final CrawlerMetrics metrics;
 
     private final int threads;
 
     public Crawler(int threads,
                    Frontier frontier,
-                   VisitedTracker visitedTracker) {
+                   VisitedTracker visitedTracker,
+                   RobotsService robotsService
+    ) {
         this.processExecutor = Executors.newFixedThreadPool(threads);
         this.dispatcherExecutor = Executors.newFixedThreadPool(2);
         this.metricsExecutor = Executors.newSingleThreadScheduledExecutor();
 
         this.frontier = frontier;
         this.visitedTracker = visitedTracker;
+        this.robotsService = robotsService;
         this.fetcher = ComponentFactory.createFetcher();
         this.parser = ComponentFactory.createParser();
         this.storage = ComponentFactory.createStorage();
@@ -61,6 +66,10 @@ public class Crawler {
                     String url = task.getUrl();
 
                     if (url == null || url.isBlank()) {
+                        continue;
+                    }
+
+                    if(!robotsService.isAllowed(url)) {
                         continue;
                     }
 
