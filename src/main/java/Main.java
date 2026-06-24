@@ -1,5 +1,6 @@
 public class Main {
     public static void main(String[] args) {
+        String seedUrl = args.length > 0 ? args[0] : "https://example.com";
 
         RobotsService robotsService = ComponentFactory.createRobotsService();
 
@@ -7,7 +8,7 @@ public class Main {
         VisitedTracker visited = ComponentFactory.createVisitedTracker();
 
         // seed once
-        frontier.addTask(new CrawlTask("https://example.com", 0));
+        frontier.addTask(new CrawlTask(seedUrl, 0));
 
         Crawler crawler = new Crawler(5, frontier, visited, robotsService);
 
