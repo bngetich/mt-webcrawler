@@ -6,6 +6,7 @@ public class CrawlerMetrics {
     private final AtomicLong fetchFailures = new AtomicLong();
     private final AtomicLong retriesScheduled = new AtomicLong();
     private final AtomicLong deadLettered = new AtomicLong();
+    private final AtomicLong robotsBlocked = new AtomicLong();
 
     public void incrementPagesFetched() {
         pagesFetched.incrementAndGet();
@@ -22,6 +23,9 @@ public class CrawlerMetrics {
     public void incrementDeadLettered() {
         deadLettered.incrementAndGet();
     }
+    public void incrementRobotsBlocked() {
+        robotsBlocked.incrementAndGet();
+    }
 
     public long getPagesFetched() {
         return pagesFetched.get();
@@ -37,5 +41,8 @@ public class CrawlerMetrics {
 
     public long getDeadLettered() {
         return deadLettered.get();
+    }
+    public long getRobotsBlocked() {
+        return robotsBlocked.get();
     }
 }

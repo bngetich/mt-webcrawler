@@ -70,6 +70,8 @@ public class Crawler {
                     }
 
                     if(!robotsService.isAllowed(url)) {
+                        metrics.incrementRobotsBlocked();
+                        System.out.println("Robots blocked: " + url);
                         continue;
                     }
 
@@ -145,6 +147,11 @@ public class Crawler {
             System.out.println(
                     "Pages fetched: " +
                             metrics.getPagesFetched()
+            );
+
+            System.out.println(
+                    "Robots blocked: " +
+                            metrics.getRobotsBlocked()
             );
 
             System.out.println(
