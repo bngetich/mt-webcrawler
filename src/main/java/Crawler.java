@@ -23,6 +23,8 @@ public class Crawler {
 
     private final CrawlerMetrics metrics;
 
+    private final MetricsServer metricsServer;
+
     private final int threads;
 
     public Crawler(int threads,
@@ -42,10 +44,19 @@ public class Crawler {
         this.storage = ComponentFactory.createStorage();
         this.fetchedPages = new LinkedBlockingQueue<>();
         this.metrics = new CrawlerMetrics();
+        this.metricsServer = new MetricsServer(
+                9091,
+                () -> metrics.toPrometheusFormat(
+                        frontier.size(),
+                        fetchedPages.size()
+                )
+        );
         this.threads = threads;
     }
 
     public void start() {
+        metricsServer.start();
+
         // CPU workers
         for (int i = 0; i < threads; i++) {
             processExecutor.submit(
@@ -70,6 +81,8 @@ public class Crawler {
                     }
 
                     if(!robotsService.isAllowed(url)) {
+                        metrics.incrementRobotsBlocked();
+                        System.out.println("Robots blocked: " + url);
                         continue;
                     }
 
@@ -131,6 +144,7 @@ public class Crawler {
 
 
     public void stop() {
+        metricsServer.stop();
         metricsExecutor.shutdownNow();
         dispatcherExecutor.shutdownNow();
         processExecutor.shutdownNow();
@@ -145,6 +159,11 @@ public class Crawler {
             System.out.println(
                     "Pages fetched: " +
                             metrics.getPagesFetched()
+            );
+
+            System.out.println(
+                    "Robots blocked: " +
+                            metrics.getRobotsBlocked()
             );
 
             System.out.println(
@@ -165,6 +184,11 @@ public class Crawler {
             System.out.println(
                     "Frontier size: " +
                             frontier.size()
+            );
+
+            System.out.println(
+                    "Fetched pages queue size: " +
+                            fetchedPages.size()
             );
 
             System.out.println(

@@ -2,6 +2,8 @@ public class Main {
     public static void main(String[] args) {
         String seedUrl = args.length > 0 ? args[0] : "https://example.com";
 
+        System.out.println("Seed URL: " + seedUrl);
+
         RobotsService robotsService = ComponentFactory.createRobotsService();
 
         Frontier frontier = ComponentFactory.createFrontier(robotsService);

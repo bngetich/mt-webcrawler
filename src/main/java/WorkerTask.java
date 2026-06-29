@@ -5,6 +5,10 @@ import java.util.concurrent.BlockingQueue;
 
 public class WorkerTask implements Runnable {
 
+    private static final long PARSER_DELAY_MS = Long.parseLong(
+            System.getProperty("parser.delay.ms", "0")
+    );
+
     private final BlockingQueue<Page> fetchedPages;
     private final Parser parser;
     private final Frontier frontier;
@@ -28,6 +32,10 @@ public class WorkerTask implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 Page page = fetchedPages.take();
+
+                if (PARSER_DELAY_MS > 0) {
+                    Thread.sleep(PARSER_DELAY_MS);
+                }
 
                 Document doc = Jsoup.parse(page.getContent(), page.getUrl());
                 List<String> links = parser.extractLinks(doc);
