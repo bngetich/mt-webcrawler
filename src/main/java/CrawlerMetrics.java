@@ -45,4 +45,22 @@ public class CrawlerMetrics {
     public long getRobotsBlocked() {
         return robotsBlocked.get();
     }
+
+    public String toPrometheusFormat(long frontierSize, long fetchedPagesQueueSize) {
+        return ""
+                + "# TYPE crawler_pages_fetched_total counter\n"
+                + "crawler_pages_fetched_total " + getPagesFetched() + "\n"
+                + "# TYPE crawler_robots_blocked_total counter\n"
+                + "crawler_robots_blocked_total " + getRobotsBlocked() + "\n"
+                + "# TYPE crawler_fetch_failures_total counter\n"
+                + "crawler_fetch_failures_total " + getFetchFailures() + "\n"
+                + "# TYPE crawler_retries_scheduled_total counter\n"
+                + "crawler_retries_scheduled_total " + getRetriesScheduled() + "\n"
+                + "# TYPE crawler_dead_lettered_total counter\n"
+                + "crawler_dead_lettered_total " + getDeadLettered() + "\n"
+                + "# TYPE crawler_frontier_size gauge\n"
+                + "crawler_frontier_size " + frontierSize + "\n"
+                + "# TYPE crawler_fetched_pages_queue_size gauge\n"
+                + "crawler_fetched_pages_queue_size " + fetchedPagesQueueSize + "\n";
+    }
 }
